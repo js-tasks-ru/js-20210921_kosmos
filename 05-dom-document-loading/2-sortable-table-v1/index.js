@@ -1,13 +1,15 @@
 export default class SortableTable {
+  static sortFn = {
+    string: (a, b) => a.localeCompare(b, ["ru", "en"], { caseFirst: "upper" }),
+    number: (a, b) => a - b,
+  };
+
   constructor(headerConfig = [], { data = [] } = {}) {
     this.headerConfig = headerConfig;
     this.data = data;
 
     this.render();
   }
-
-  sortField = null;
-  sortOrder = null;
 
   getTemplate() {
     return `<div class="sortable-table">
@@ -17,20 +19,21 @@ export default class SortableTable {
   `;
   }
 
-  renderHeader() {
+  renderHeader(sortField, sortOrder) {
     const renderHeaderCeil = (data) => {
-      const arrow = `<span data-element="arrow" class="sortable-table__sort-arrow">
-                        <span class="sort-arrow"></span>
-                     </span>`;
+      const order = sortField === data.id ? sortOrder : "";
+
+      const arrowTpl = `<span data-element="arrow" class="sortable-table__sort-arrow">
+                          <span class="sort-arrow"></span>
+                        </span>`;
 
       return `
-          <div class="sortable-table__cell" data-id="${
-            data.id
-          }" data-sortable="${data.sortable}" data-order="${
-        this.sortField === data.id ? this.sortOrder : ""
-      }">
+          <div class="sortable-table__cell"
+            data-id="${data.id}"
+            data-sortable="${data.sortable}"
+            data-order="${order}">
             <span>${data.title}</span>
-            ${data.sortable ? arrow : ""}
+            ${data.sortable ? arrowTpl : ""}
           </div>`;
     };
 
@@ -39,7 +42,7 @@ export default class SortableTable {
       .join("")}`;
   }
 
-  renderBody() {
+  renderBody(bodyData) {
     const renderBodyRow = (data) => {
       return `
       <a href="/products/dvd/${data.id}" class="sortable-table__row">
@@ -54,7 +57,7 @@ export default class SortableTable {
       </a>`;
     };
 
-    this.subElements.body.innerHTML = `${this.data
+    this.subElements.body.innerHTML = `${bodyData
       .map((dataItem) => renderBodyRow(dataItem))
       .join("")}`;
   }
@@ -67,7 +70,7 @@ export default class SortableTable {
     this.subElements = this.getSubElements(this.element);
 
     this.renderHeader();
-    this.renderBody();
+    this.renderBody(this.data);
   }
 
   getSubElements(element) {
@@ -82,37 +85,27 @@ export default class SortableTable {
     return result;
   }
   sort(field, value) {
-    this.sortField = field;
-    this.sortOrder = value;
-
     const fieldSortType = this.headerConfig.find(
       (item) => item.id === field
     ).sortType;
 
-    const sortFn = SortableTable.sortFn[fieldSortType][this.sortOrder];
+    const sortFn = SortableTable.sortFn[fieldSortType];
 
-    this.data.sort((a, b) => sortFn(a[field], b[field]));
+    const sortedData = [...this.data].sort(
+      (a, b) => (value === "asc" ? 1 : -1) * sortFn(a[field], b[field])
+    );
 
-    this.renderHeader();
-    this.renderBody();
+    this.renderHeader(field, value);
+    this.renderBody(sortedData);
   }
 
   remove() {
-    this.element.remove();
+    if (this.element) {
+      this.element.remove();
+    }
   }
 
   destroy() {
     this.remove();
   }
-
-  static sortFn = {
-    string: {
-      asc: (a, b) => a.localeCompare(b, ["ru", "en"], { caseFirst: "upper" }),
-      desc: (a, b) => -a.localeCompare(b, ["ru", "en"], { caseFirst: "upper" }),
-    },
-    number: {
-      asc: (a, b) => a - b,
-      desc: (a, b) => b - a,
-    },
-  };
 }
